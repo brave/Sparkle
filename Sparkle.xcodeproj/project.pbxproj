@@ -2372,6 +2372,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = FA1941CA0D94A70100DD942E /* ConfigFrameworkDebug.xcconfig */;
 			buildSettings = {
+				LD_DYLIB_INSTALL_NAME = "@loader_path/Frameworks/Sparkle.framework/Sparkle";
 			};
 			name = Coverage;
 		};
@@ -2425,6 +2426,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = FA1941CA0D94A70100DD942E /* ConfigFrameworkDebug.xcconfig */;
 			buildSettings = {
+				LD_DYLIB_INSTALL_NAME = "@loader_path/Frameworks/Sparkle.framework/Sparkle";
 			};
 			name = Debug;
 		};
@@ -2432,6 +2434,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = FA1941D50D94A70100DD942E /* ConfigFrameworkRelease.xcconfig */;
 			buildSettings = {
+				LD_DYLIB_INSTALL_NAME = "@loader_path/Frameworks/Sparkle.framework/Sparkle";
 			};
 			name = Release;
 		};

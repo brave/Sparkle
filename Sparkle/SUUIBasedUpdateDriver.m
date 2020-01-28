@@ -56,6 +56,10 @@
     return self;
 }
 
+- (BOOL)shouldShowUpdateAlertForItem:(SUAppcastItem *)__unused item {
+    return YES;
+}
+
 - (void)didFindValidUpdate
 {
     id<SUUpdaterPrivate> updater = self.updater;
@@ -64,12 +68,18 @@
     }
 
     if (self.automaticallyInstallUpdates) {
-        [self updateAlertFinishedWithChoice:SUInstallUpdateChoice];
+        [self updateAlertFinishedWithChoice:SUInstallUpdateChoice forItem:nil];
         return;
     }
 
-    self.updateAlert = [[SUUpdateAlert alloc] initWithAppcastItem:self.updateItem host:self.host completionBlock:^(SUUpdateAlertChoice choice) {
-        [self updateAlertFinishedWithChoice:choice];
+    SUAppcastItem *updateItem = self.updateItem;
+    if (![self shouldShowUpdateAlertForItem:updateItem]) {
+        [self abortUpdate];
+        return;
+    }
+
+    self.updateAlert = [[SUUpdateAlert alloc] initWithAppcastItem:updateItem host:self.host completionBlock:^(SUUpdateAlertChoice choice) {
+        [self updateAlertFinishedWithChoice:choice forItem:updateItem];
     }];
 
     id<SUVersionDisplay> versDisp = nil;
@@ -110,9 +120,25 @@
 
     if (!self.automaticallyInstallUpdates) {
         NSAlert *alert = [[NSAlert alloc] init];
-        alert.messageText = SULocalizedString(@"You're up-to-date!", "Status message shown when the user checks for updates but is already current or the feed doesn't contain any updates.");
-        alert.informativeText = [NSString stringWithFormat:SULocalizedString(@"%@ %@ is currently the newest version available.", nil), [self.host name], [self.host displayVersion]];
-        [alert addButtonWithTitle:SULocalizedString(@"OK", nil)];
+        
+        if (self.latestAppcastItem) // if the appcast was successfully loaded
+        {
+            alert.messageText = SULocalizedString(@"You're up-to-date!", "Status message shown when the user checks for updates but is already current or the feed doesn't contain any updates.");
+
+            if (self.latestAppcastItemComparisonResult == NSOrderedDescending ) { // this means the user is a 'newer than latest' version. give a slight hint to the user instead of wrongly claiming this version is identical to the latest feed version.
+                alert.informativeText = [NSString stringWithFormat:SULocalizedString(@"%@ %@ is currently the newest version available.\n(You are currently running version %@.)", nil), [self.host name], self.latestAppcastItem.displayVersionString, [self.host displayVersion]];
+            }
+            else {
+                alert.informativeText = [NSString stringWithFormat:SULocalizedString(@"%@ %@ is currently the newest version available.", nil), [self.host name], [self.host displayVersion]];
+            }
+            [alert addButtonWithTitle:SULocalizedString(@"OK", nil)];
+        }
+        else {
+            alert.messageText = SULocalizedString(@"Update Error!", nil);
+            alert.informativeText = SULocalizedString(@"No valid update information could be loaded.", nil);
+            [alert addButtonWithTitle:SULocalizedString(@"Cancel Update", nil)];
+        }
+	    
         [self showAlert:alert];
     }
     
@@ -125,26 +151,44 @@
     [[NSNotificationCenter defaultCenter] removeObserver:self name:NSApplicationDidBecomeActiveNotification object:NSApp];
 }
 
-- (void)updateAlertFinishedWithChoice:(SUUpdateAlertChoice)choice
+- (void)didDismissAlertPermanently:(BOOL)permanently forItem:(SUAppcastItem *)item {
+    if (item == nil) {
+        return;
+    }
+    id<SUUpdaterPrivate> updater = self.updater;
+    if ([updater.delegate respondsToSelector:@selector(updater:didDismissUpdateAlertPermanently:forItem:)]) {
+        [updater.delegate updater:self.updater didDismissUpdateAlertPermanently:permanently forItem:item];
+    }
+}
+
+- (void)updateAlertFinishedWithChoice:(SUUpdateAlertChoice)choice forItem:(SUAppcastItem *)item
 {
     self.updateAlert = nil;
     [self.host setObject:nil forUserDefaultsKey:SUSkippedVersionKey];
+    id<SUUpdaterPrivate> updater = self.updater;
     switch (choice) {
         case SUInstallUpdateChoice:
+            [self didDismissAlertPermanently:NO forItem:item];
             [self downloadUpdate];
             break;
 
         case SUOpenInfoURLChoice:
+            [self didDismissAlertPermanently:NO forItem:item];
             [[NSWorkspace sharedWorkspace] openURL:[self.updateItem infoURL]];
             [self abortUpdate];
             break;
 
         case SUSkipThisVersionChoice:
+            if ([[updater delegate] respondsToSelector:@selector(updater:userDidSkipThisVersion:)]) { 
+                [[updater delegate] updater:self.updater userDidSkipThisVersion:self.updateItem]; 
+            }
+            [self didDismissAlertPermanently:YES forItem:item];
             [self.host setObject:[self.updateItem versionString] forUserDefaultsKey:SUSkippedVersionKey];
             [self abortUpdate];
             break;
 
         case SURemindMeLaterChoice:
+            [self didDismissAlertPermanently:NO forItem:item];
             [self abortUpdate];
             break;
     }
@@ -169,10 +213,11 @@
     [super downloadUpdate];
 }
 
-- (void)download:(NSURLDownload *)__unused download didReceiveResponse:(NSURLResponse *)response
+- (void)downloaderDidReceiveExpectedContentLength:(int64_t) expectedContentLength
 {
-    long long expectedContentLength = [response expectedContentLength];
-    [self.statusController setMaxProgressValue:expectedContentLength > 0 ? expectedContentLength : self.updateItem.contentLength];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self.statusController setMaxProgressValue:expectedContentLength > 0 ? expectedContentLength : self.updateItem.contentLength];
+    });
 }
 
 - (NSString *)localizedStringFromByteCount:(long long)value
@@ -205,20 +250,24 @@
 #pragma clang diagnostic pop
 }
 
-- (void)download:(NSURLDownload *)__unused download didReceiveDataOfLength:(NSUInteger)length
+
+- (void)downloaderDidReceiveDataOfLength:(uint64_t) length
 {
-    double newProgressValue = [self.statusController progressValue] + (double)length;
-    
-    // In case our expected content length was incorrect
-    if (newProgressValue > [self.statusController maxProgressValue]) {
-        [self.statusController setMaxProgressValue:newProgressValue];
-    }
-    
-    [self.statusController setProgressValue:newProgressValue];
-    if ([self.statusController maxProgressValue] > 0.0)
-        [self.statusController setStatusText:[NSString stringWithFormat:SULocalizedString(@"%@ of %@", nil), [self localizedStringFromByteCount:(long long)self.statusController.progressValue], [self localizedStringFromByteCount:(long long)self.statusController.maxProgressValue]]];
-    else
-        [self.statusController setStatusText:[NSString stringWithFormat:SULocalizedString(@"%@ downloaded", nil), [self localizedStringFromByteCount:(long long)self.statusController.progressValue]]];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        double newProgressValue = [self.statusController progressValue] + (double)length;
+
+        // In case our expected content length was incorrect
+        if (newProgressValue > [self.statusController maxProgressValue]) {
+            [self.statusController setMaxProgressValue:newProgressValue];
+        }
+
+        [self.statusController setProgressValue:newProgressValue];
+        if ([self.statusController maxProgressValue] > 0.0) {
+            [self.statusController setStatusText:[NSString stringWithFormat:SULocalizedString(@"%@ of %@", nil), [self localizedStringFromByteCount:(long long)self.statusController.progressValue], [self localizedStringFromByteCount:(long long)self.statusController.maxProgressValue]]];
+        } else {
+            [self.statusController setStatusText:[NSString stringWithFormat:SULocalizedString(@"%@ downloaded", nil), [self localizedStringFromByteCount:(long long)self.statusController.progressValue]]];
+        }
+    });
 }
 
 - (IBAction)cancelDownload:(id)__unused sender
@@ -236,19 +285,29 @@
 
 - (void)extractUpdate
 {
-    // Now we have to extract the downloaded archive.
-    [self.statusController beginActionWithTitle:SULocalizedString(@"Extracting update...", @"Take care not to overflow the status window.") maxProgressValue:0.0 statusText:nil];
-    [self.statusController setButtonEnabled:NO];
+    dispatch_block_t updateUI = ^{
+        // Now we have to extract the downloaded archive.
+        [self.statusController beginActionWithTitle:SULocalizedString(@"Extracting update...", @"Take care not to overflow the status window.") maxProgressValue:0.0 statusText:nil];
+        [self.statusController setButtonEnabled:NO];
+    };
+    
+    if (![NSThread mainThread]) {
+        dispatch_sync(dispatch_get_main_queue(), updateUI);
+    } else {
+        updateUI();
+    }
     [super extractUpdate];
 }
 
 - (void)unarchiver:(id)__unused ua extractedProgress:(double)progress
 {
-    // We do this here instead of in extractUpdate so that we only have a determinate progress bar for archives with progress.
-	if ([self.statusController maxProgressValue] == 0.0) {
-        [self.statusController setMaxProgressValue:1];
-    }
-    [self.statusController setProgressValue:progress];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // We do this here instead of in extractUpdate so that we only have a determinate progress bar for archives with progress.
+        if ([self.statusController maxProgressValue] == 0.0) {
+            [self.statusController setMaxProgressValue:1];
+        }
+        [self.statusController setProgressValue:progress];
+    });
 }
 
 - (void)unarchiverDidFinish:(id)__unused ua
@@ -295,14 +354,21 @@
 
 - (void)abortUpdateWithError:(NSError *)error
 {
-    if (self.showErrors) {
-        NSAlert *alert = [[NSAlert alloc] init];
-        alert.messageText = SULocalizedString(@"Update Error!", nil);
-        alert.informativeText = [NSString stringWithFormat:@"%@", [error localizedDescription]];
-        [alert addButtonWithTitle:SULocalizedString(@"Cancel Update", nil)];
-        [self showAlert:alert];
+    void (^callback)(void) = ^{
+        if (self.showErrors) {
+            NSAlert *alert = [[NSAlert alloc] init];
+            alert.messageText = SULocalizedString(@"Update Error!", nil);
+            alert.informativeText = [NSString stringWithFormat:@"%@", [error localizedDescription]];
+            [alert addButtonWithTitle:SULocalizedString(@"Cancel Update", nil)];
+            [self showAlert:alert];
+        }
+        [super abortUpdateWithError:error];
+    };
+    if ([NSThread isMainThread]) {
+        callback();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), callback);
     }
-    [super abortUpdateWithError:error];
 }
 
 - (void)abortUpdate

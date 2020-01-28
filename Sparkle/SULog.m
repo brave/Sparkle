@@ -7,15 +7,29 @@
 //
 
 #include "SULog.h"
+
 #include <asl.h>
+#include <Availability.h>
+
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 101200
 #include <os/log.h>
+#else
+
+typedef struct os_log_s *os_log_t;
+#define os_log_create(subsystem, category) nil
+
+#define os_log(log, format, ...)
+#define os_log_error(log, format, ...)
+
+#endif
+
+#include "AppKitPrevention.h"
 #import "SUOperatingSystem.h"
 
 // For converting constants to string literals using the preprocessor
 #define STRINGIFY(x) #x
 #define TO_STRING(x) STRINGIFY(x)
 
-#include "AppKitPrevention.h"
 
 void SULog(SULogLevel level, NSString *format, ...)
 {
@@ -30,6 +44,9 @@ void SULog(SULogLevel level, NSString *format, ...)
         NSBundle *mainBundle = [NSBundle mainBundle];
 
         hasOSLogging = [SUOperatingSystem isOperatingSystemAtLeastVersion:(NSOperatingSystemVersion){10, 12, 0}];
+#if __MAC_OS_X_VERSION_MAX_ALLOWED < 101200
+        hasOSLogging = NO;
+#endif
 
         if (hasOSLogging) {
             const char *subsystem = SPARKLE_BUNDLE_IDENTIFIER;
@@ -46,7 +63,7 @@ void SULog(SULogLevel level, NSString *format, ...)
             }
 
             NSString *displayName = [[NSFileManager defaultManager] displayNameAtPath:mainBundle.bundlePath];
-            client = asl_open([displayName stringByAppendingString:@" [Sparkle]"].UTF8String, SPARKLE_BUNDLE_IDENTIFIER, options);
+            client = asl_open([displayName stringByAppendingString:@" [Sparkle " TO_STRING(SPARKLE_VERSION) "]"].UTF8String, SPARKLE_BUNDLE_IDENTIFIER, options);
             queue = dispatch_queue_create(NULL, DISPATCH_QUEUE_SERIAL);
         }
     });

@@ -13,7 +13,11 @@ func unarchive(itemPath:URL, archiveDestDir: URL, callback: @escaping (Error?) -
     _ = try? fileManager.createDirectory(at: tempDir, withIntermediateDirectories: true, attributes: [:]);
 
     do {
-        try fileManager.linkItem(at: itemPath, to: itemCopy);
+        do {
+            try fileManager.linkItem(at: itemPath, to: itemCopy);
+        } catch {
+            try fileManager.copyItem(at: itemPath, to: itemCopy);
+        }
         if let unarchiver = SUUnarchiver.unarchiver(forPath: itemCopy.path, updatingHostBundlePath:nil, decryptionPassword:nil) {
             unarchiver.unarchive(completionBlock: { (error: Error?) in
                 if error != nil {
@@ -39,8 +43,10 @@ func unarchive(itemPath:URL, archiveDestDir: URL, callback: @escaping (Error?) -
     }
 }
 
-func unarchiveUpdates(archivesSourceDir: URL) throws -> [ArchiveItem] {
-    let archivesDestDir = archivesSourceDir.appendingPathComponent(".tmp");
+func unarchiveUpdates(archivesSourceDir: URL, archivesDestDir: URL, verbose: Bool) throws -> [ArchiveItem] {
+    if verbose {
+        print("Unarchiving to temp directory", archivesDestDir.path);
+    }
 
     let group = DispatchGroup();
 
@@ -60,10 +66,18 @@ func unarchiveUpdates(archivesSourceDir: URL) throws -> [ArchiveItem] {
         }
 
         let addItem = {
-            if let item = try? ArchiveItem(fromArchive: itemPath, unarchivedDir: archiveDestDir) {
+            do {
+                let item = try ArchiveItem(fromArchive: itemPath, unarchivedDir: archiveDestDir);
+                if verbose {
+                    print("Found archive", item);
+                }
                 objc_sync_enter(unarchived);
                 unarchived.append(item);
                 objc_sync_exit(unarchived);
+            } catch {
+                if verbose {
+                    print("Skipped", item, error);
+                }
             }
         }
 

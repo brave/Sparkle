@@ -25,6 +25,7 @@
 #import "SUUpdater.h"
 #import "SUAppcast.h"
 #import "SUAppcastItem.h"
+#import "SUGlobalUpdateLock.h"
 
 #import "SPUURLRequest.h"
 #import "SPUDownloaderDeprecated.h"
@@ -63,15 +64,16 @@
 - (void)checkForUpdatesAtURL:(NSURL *)URL host:(SUHost *)aHost
 {
     [super checkForUpdatesAtURL:URL host:aHost];
-	if ([aHost isRunningOnReadOnlyVolume])
-	{
+    if ([aHost isRunningOnReadOnlyVolume])
+    {
+        NSString *hostName = [aHost name];
         if ([aHost isRunningTranslocated])
         {
-            [self abortUpdateWithError:[NSError errorWithDomain:SUSparkleErrorDomain code:SURunningTranslocated userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:SULocalizedString(@"Quit %1$@, move it into your Applications folder, relaunch it from there and try again. %2$@ can’t be updated if it’s running from the location it was downloaded to.", nil), [aHost name], [aHost name]] }]];
+            [self abortUpdateWithError:[NSError errorWithDomain:SUSparkleErrorDomain code:SURunningTranslocated userInfo:@{ NSLocalizedRecoverySuggestionErrorKey: [NSString stringWithFormat:SULocalizedString(@"Quit %1$@, move it into your Applications folder, relaunch it from there and try again.", nil), hostName], NSLocalizedDescriptionKey: [NSString stringWithFormat:SULocalizedString(@"%1$@ can’t be updated if it’s running from the location it was downloaded to.", nil), hostName], }]];
         }
         else
         {
-            [self abortUpdateWithError:[NSError errorWithDomain:SUSparkleErrorDomain code:SURunningFromDiskImageError userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:SULocalizedString(@"%1$@ can't be updated, because it was opened from a read-only or a temporary location. Use Finder to copy %1$@ to the Applications folder, relaunch it from there, and try again.", nil), [aHost name]] }]];
+            [self abortUpdateWithError:[NSError errorWithDomain:SUSparkleErrorDomain code:SURunningFromDiskImageError userInfo:@{ NSLocalizedDescriptionKey: [NSString stringWithFormat:SULocalizedString(@"%1$@ can't be updated, because it was opened from a read-only or a temporary location.", nil), hostName], NSLocalizedRecoverySuggestionErrorKey: [NSString stringWithFormat:SULocalizedString(@"Use Finder to copy %1$@ to the Applications folder, relaunch it from there, and try again.", nil), hostName] }]];
         }
         return;
     }
@@ -117,9 +119,18 @@
 - (SUAppcastItem *)bestItemFromAppcastItems:(NSArray *)appcastItems getDeltaItem:(SUAppcastItem * __autoreleasing *)deltaItem withHostVersion:(NSString *)hostVersion comparator:(id<SUVersionComparison>)comparator
 {
     SUAppcastItem *item = nil;
+    NSComparisonResult order;
+
     for(SUAppcastItem *candidate in appcastItems) {
         if ([self hostSupportsItem:candidate]) {
-            if (!item || [comparator compareVersion:item.versionString toVersion:candidate.versionString] == NSOrderedAscending) {
+            // Pick this item if nothing is picked yet. Always pick an item with a higher version. Only if versions are the same
+            // compare their dates and pick this item if its date is not lower – this covers cases when no date is available
+            // and picks items at the end of the appcast list as they are more likely to be the most recent releases.
+            if (
+                !item
+                    || (order = [comparator compareVersion:item.versionString toVersion:candidate.versionString]) == NSOrderedAscending
+                    || (order == NSOrderedSame && [item.date compare:candidate.date] != NSOrderedDescending)
+            ) {
                 item = candidate;
             }
         }
@@ -138,7 +149,7 @@
 - (BOOL)hostSupportsItem:(SUAppcastItem *)ui
 {
     BOOL osOK = [ui isMacOsUpdate];
-	if (([ui minimumSystemVersion] == nil || [[ui minimumSystemVersion] isEqualToString:@""]) &&
+    if (([ui minimumSystemVersion] == nil || [[ui minimumSystemVersion] isEqualToString:@""]) &&
         ([ui maximumSystemVersion] == nil || [[ui maximumSystemVersion] isEqualToString:@""])) {
         return osOK;
     }
@@ -167,7 +178,7 @@
 - (BOOL)itemContainsSkippedVersion:(SUAppcastItem *)ui
 {
     NSString *skippedVersion = [self.host objectForUserDefaultsKey:SUSkippedVersionKey];
-	if (skippedVersion == nil) { return NO; }
+    if (skippedVersion == nil) { return NO; }
     return [[self versionComparator] compareVersion:[ui versionString] toVersion:skippedVersion] != NSOrderedDescending;
 }
 
@@ -290,6 +301,9 @@
     if ([[NSFileManager defaultManager] fileExistsAtPath:appCachePath]) {
         [[NSFileManager defaultManager] removeItemAtPath:appCachePath error:NULL];
     }
+
+    // Ensure no other thirdparty app-updater is concurrently updating this app.
+    [[SUGlobalUpdateLock sharedLock] lock];
 
     id<SUUpdaterPrivate> updater = self.updater;
 
@@ -667,6 +681,9 @@
 
 - (void)abortUpdate
 {
+    // Remove lockfile to prevent 3rd party updaters from updating this app if the update is not going to happen anyway
+    [[SUGlobalUpdateLock sharedLock] unlock];
+
     [self cleanUpDownload];
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     self.updateItem = nil;

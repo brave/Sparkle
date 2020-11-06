@@ -1,7 +1,7 @@
-os: osx
 language: objective-c
+os: osx
 osx_image:
   - xcode11.4
   - xcode12
 script:
-  - make ci
+  - set -o pipefail && xcodebuild test -project Sparkle.xcodeproj -scheme Distribution -derivedDataPath build -enableCodeCoverage YES | xcpretty

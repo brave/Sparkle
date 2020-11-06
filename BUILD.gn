@@ -11,17 +11,21 @@ bundle_data("sparkle_framework_bundle_data") {
   outputs = [ "{{bundle_contents_dir}}/Frameworks/{{source_file_part}}" ]
 }
 
-bundle_data("sparkle_resources_bundle_data") {
-  sources = [ "dsa_pub.pem" ]
-  outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
-}
-
 action("build_sparkle_framework") {
   script="build_sparkle_framework.py"
 
   outputs = [
     "$root_out_dir/Sparkle.framework",
-    "$root_out_dir/BinaryDelta"
+    "$root_out_dir/BinaryDelta",
+    "$root_out_dir/generate_keys",
+    "$root_out_dir/sign_update",
   ]
 }
 
+copy("copy_old_sign_update") {
+  sources = [ "bin/old_dsa_scripts/sign_update" ]
+
+  outputs = [
+    "$root_out_dir/old_dsa_scripts/{{source_file_part}}",
+  ]
+}

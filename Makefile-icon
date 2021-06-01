@@ -9,7 +9,7 @@ DESTICON=Resources/AppIcon.icns
 all: $(DESTICON)
 
 libicns:
-	git clone https://github.com/pornel/libicns.git
+	git clone https://github.com/kornelski/libicns.git
 
 libicns/Makefile: libicns
 	( cd libicns && autoreconf -vif && ./configure )

@@ -17,11 +17,11 @@ pipeline {
             steps {
                 script {
                     utils.run("""
-                        xcodebuild -target Sparkle -configuration Release CONFIGURATION_BUILD_DIR=sparkle_binaries build
-                        xcodebuild -target BinaryDelta -configuration Release CONFIGURATION_BUILD_DIR=sparkle_binaries build
-                        xcodebuild -target generate_keys -configuration Release CONFIGURATION_BUILD_DIR=sparkle_binaries build
-                        xcodebuild -target sign_update -configuration Release CONFIGURATION_BUILD_DIR=sparkle_binaries build
-                        cp bin/old_dsa_scripts/sign_update sparkle_binaries/sign_update_dsa
+                        xcodebuild -target Sparkle -configuration Release CONFIGURATION_BUILD_DIR=binaries build
+                        xcodebuild -target BinaryDelta -configuration Release CONFIGURATION_BUILD_DIR=binaries build
+                        xcodebuild -target generate_keys -configuration Release CONFIGURATION_BUILD_DIR=binaries build
+                        xcodebuild -target sign_update -configuration Release CONFIGURATION_BUILD_DIR=binaries build
+                        cp bin/old_dsa_scripts/sign_update binaries/sign_update_dsa
                     """)
                 }
             }
@@ -29,7 +29,7 @@ pipeline {
         stage('pack-binaries') {
             steps {
                 script {
-                    utils.run("tar czf sparkle_binaries.tar.gz sparkle_binaries")
+                    utils.run("tar -C binaries czf binaries.tar.gz .")
                 }
             }
         }
@@ -37,7 +37,7 @@ pipeline {
             steps {
                 withAWS(credentials: "mac-build-s3-upload-artifacts", region: "us-west-2") {
                     sh '''
-                        aws s3 cp --no-progress sparkle_binaries.tar.gz s3://brave-build-deps-public/sparkle/$(git rev-parse HEAD).tar.gz
+                        aws s3 cp --no-progress binaries.tar.gz s3://brave-build-deps-public/sparkle/$(git rev-parse HEAD).tar.gz
                     '''
                 }
             }

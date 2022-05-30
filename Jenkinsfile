@@ -34,7 +34,7 @@ pipeline {
         }
         stage("s3-upload") {
             script {
-                utils.run("aws s3 cp --no-progress binaries.tar.gz s3://brave-build-deps-public/$(git rev-parse HEAD)/binaries.tar.gz")
+                utils.run("aws s3 cp --no-progress binaries.tar.gz s3://brave-build-deps-public/sparkle/`git rev-parse HEAD`/")
             }
         }
 }

@@ -34,7 +34,7 @@ pipeline {
         }
         stage("s3-upload") {
             steps {
-                script {
+                withAWS(credentials: "mac-build-s3-upload-artifacts", region: "us-west-2") {
                     utils.run('''
                         aws s3 cp --no-progress binaries.tar.gz s3://brave-build-deps-public/sparkle/$(git rev-parse HEAD)/
                     ''')

@@ -33,10 +33,12 @@ pipeline {
             }
         }
         stage("s3-upload") {
-            script {
-                utils.run('''
-                    aws s3 cp --no-progress binaries.tar.gz s3://brave-build-deps-public/sparkle/$(git rev-parse HEAD)/
-                ''')
+            steps {
+                script {
+                    utils.run('''
+                        aws s3 cp --no-progress binaries.tar.gz s3://brave-build-deps-public/sparkle/$(git rev-parse HEAD)/
+                    ''')
+                }
             }
         }
     }

@@ -25,28 +25,28 @@ def Main(args):
   out_dir_config = 'CONFIGURATION_BUILD_DIR=' + out_dir
   command = ['xcodebuild', '-target', 'Sparkle', '-configuration', 'Release', out_dir_config, 'build']
   try:
-      subprocess.check_call(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-  except subprocess.CalledProcessError as e:
+      subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+)  except subprocess.CalledProcessError as e:
       print(e.output)
       raise e
 
   command = ['xcodebuild', '-target', 'BinaryDelta', '-configuration', 'Release', out_dir_config, 'build']
   try:
-      subprocess.check_call(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   except subprocess.CalledProcessError as e:
       print(e.output)
       raise e
 
   command = ['xcodebuild', '-target', 'generate_keys', '-configuration', 'Release', out_dir_config, 'build']
   try:
-      subprocess.check_call(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   except subprocess.CalledProcessError as e:
       print(e.output)
       raise e
 
   command = ['xcodebuild', '-target', 'sign_update', '-configuration', 'Release', out_dir_config, 'build']
   try:
-      subprocess.check_call(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   except subprocess.CalledProcessError as e:
       print(e.output)
       raise e

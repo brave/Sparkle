@@ -21,6 +21,7 @@ pipeline {
                         xcodebuild -target BinaryDelta -configuration Release CONFIGURATION_BUILD_DIR=Sparkle-binaries build
                         xcodebuild -target generate_keys -configuration Release CONFIGURATION_BUILD_DIR=Sparkle-binaries build
                         xcodebuild -target sign_update -configuration Release CONFIGURATION_BUILD_DIR=Sparkle-binaries build
+                        cp bin/old_dsa_scripts/sign_update Sparkle-binaries/sign_update_dsa
                     """)
                 }
             }

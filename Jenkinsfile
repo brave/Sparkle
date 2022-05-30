@@ -17,10 +17,10 @@ pipeline {
             steps {
                 script {
                     utils.run("""
-                        xcodebuild -target Sparkle -configuration Release CONFIGURATION_BUILD_DIR=binaries build
-                        xcodebuild -target BinaryDelta -configuration Release CONFIGURATION_BUILD_DIR=binaries build
-                        xcodebuild -target generate_keys -configuration Release CONFIGURATION_BUILD_DIR=binaries build
-                        xcodebuild -target sign_update -configuration Release CONFIGURATION_BUILD_DIR=binaries build
+                        xcodebuild -target Sparkle -configuration Release CONFIGURATION_BUILD_DIR=Sparkle-binaries build
+                        xcodebuild -target BinaryDelta -configuration Release CONFIGURATION_BUILD_DIR=Sparkle-binaries build
+                        xcodebuild -target generate_keys -configuration Release CONFIGURATION_BUILD_DIR=Sparkle-binaries build
+                        xcodebuild -target sign_update -configuration Release CONFIGURATION_BUILD_DIR=Sparkle-binaries build
                     """)
                 }
             }
@@ -28,7 +28,7 @@ pipeline {
         stage('pack-binaries') {
             steps {
                 script {
-                    utils.run("tar czf binaries.tar.gz binaries")
+                    utils.run("tar czf Sparkle-binaries.tar.gz Sparkle-binaries")
                 }
             }
         }
@@ -36,7 +36,7 @@ pipeline {
             steps {
                 withAWS(credentials: "mac-build-s3-upload-artifacts", region: "us-west-2") {
                     sh '''
-                        aws s3 cp --no-progress binaries.tar.gz s3://brave-build-deps-public/sparkle/$(git rev-parse HEAD)/
+                        aws s3 cp --no-progress Sparkle-binaries.tar.gz s3://brave-build-deps-public/sparkle/$(git rev-parse HEAD).tar.gz
                     '''
                 }
             }

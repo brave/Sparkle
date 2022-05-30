@@ -3,7 +3,7 @@ pipeline {
         lib('utils')
     }
     agent {
-        label 'macos-ci'
+        label 'mac'
     }
     stages {
         stage('build') {

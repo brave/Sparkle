@@ -16,40 +16,19 @@ def Main(args):
 
   # Run `git submodule update --init` to update Vendor libs (i.e. ed25519)
   command = ['git', 'submodule', 'update', '--init']
-  try:
-      subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-  except subprocess.CalledProcessError as e:
-      print(e.output)
-      raise e
+  subprocess.run(command, check=True)
 
-  out_dir_config = 'CONFIGURATION_BUILD_DIR=' + out_dir
-  command = ['xcodebuild', '-target', 'Sparkle', '-configuration', 'Release', out_dir_config, 'build']
-  try:
-      subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-  except subprocess.CalledProcessError as e:
-      print(e.output)
-      raise e
+  command = ['xcodebuild', '-target', 'Sparkle', '-configuration', 'Release', 'build']
+  subprocess.run(command, check=True)
 
-  command = ['xcodebuild', '-target', 'BinaryDelta', '-configuration', 'Release', out_dir_config, 'build']
-  try:
-      subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-  except subprocess.CalledProcessError as e:
-      print(e.output)
-      raise e
+  command = ['xcodebuild', '-target', 'BinaryDelta', '-configuration', 'Release', 'build']
+  subprocess.run(command, check=True)
 
-  command = ['xcodebuild', '-target', 'generate_keys', '-configuration', 'Release', out_dir_config, 'build']
-  try:
-      subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-  except subprocess.CalledProcessError as e:
-      print(e.output)
-      raise e
+  command = ['xcodebuild', '-target', 'generate_keys', '-configuration', 'Release', 'build']
+  subprocess.run(command, check=True)
 
-  command = ['xcodebuild', '-target', 'sign_update', '-configuration', 'Release', out_dir_config, 'build']
-  try:
-      subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-  except subprocess.CalledProcessError as e:
-      print(e.output)
-      raise e
+  command = ['xcodebuild', '-target', 'sign_update', '-configuration', 'Release', 'build']
+  subprocess.run(command, check=True)
 
   return 0
 

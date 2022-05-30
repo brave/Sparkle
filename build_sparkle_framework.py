@@ -13,12 +13,11 @@ def Main(args):
   out_dir = os.getcwd()
   sparkle_dir = os.path.dirname(os.path.realpath(__file__))
   os.chdir(sparkle_dir)
-  FNULL = open(os.devnull, 'w')
 
   # Run `git submodule update --init` to update Vendor libs (i.e. ed25519)
   command = ['git', 'submodule', 'update', '--init']
   try:
-      subprocess.check_call(command)
+      subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   except subprocess.CalledProcessError as e:
       print(e.output)
       raise e
@@ -26,28 +25,28 @@ def Main(args):
   out_dir_config = 'CONFIGURATION_BUILD_DIR=' + out_dir
   command = ['xcodebuild', '-target', 'Sparkle', '-configuration', 'Release', out_dir_config, 'build']
   try:
-      subprocess.check_call(command, stdout=FNULL)
+      subprocess.check_call(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   except subprocess.CalledProcessError as e:
       print(e.output)
       raise e
 
   command = ['xcodebuild', '-target', 'BinaryDelta', '-configuration', 'Release', out_dir_config, 'build']
   try:
-      subprocess.check_call(command, stdout=FNULL)
+      subprocess.check_call(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   except subprocess.CalledProcessError as e:
       print(e.output)
       raise e
 
   command = ['xcodebuild', '-target', 'generate_keys', '-configuration', 'Release', out_dir_config, 'build']
   try:
-      subprocess.check_call(command, stdout=FNULL)
+      subprocess.check_call(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   except subprocess.CalledProcessError as e:
       print(e.output)
       raise e
 
   command = ['xcodebuild', '-target', 'sign_update', '-configuration', 'Release', out_dir_config, 'build']
   try:
-      subprocess.check_call(command, stdout=FNULL)
+      subprocess.check_call(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
   except subprocess.CalledProcessError as e:
       print(e.output)
       raise e

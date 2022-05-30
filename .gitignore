@@ -45,3 +45,5 @@ Temporary Items
 # Swift Package Manager
 /.build
 .swiftpm
+
+binaries/

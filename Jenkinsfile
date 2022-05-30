@@ -29,7 +29,7 @@ pipeline {
         stage('pack-binaries') {
             steps {
                 script {
-                    utils.run("tar -C binaries czf binaries.tar.gz .")
+                    utils.run("tar -C binaries -czf binaries.tar.gz .")
                 }
             }
         }

@@ -3,17 +3,17 @@ pipeline {
         lib('utils')
     }
     agent {
-        label 'mac'
+        label 'macos-ci'
     }
     stages {
-        stage('init-submodule') {
+        stage('init') {
             steps {
                 script {
                     utils.run("git submodule update --init")
                 }
             }
         }
-        stage('build') {
+        stage('dist') {
             steps {
                 script {
                     utils.run("""
@@ -36,9 +36,9 @@ pipeline {
         stage("s3-upload") {
             steps {
                 withAWS(credentials: "mac-build-s3-upload-artifacts", region: "us-west-2") {
-                    sh '''
+                    utils.run('''
                         aws s3 cp --no-progress binaries.tar.gz s3://${BRAVE_ARTIFACTS_S3_BUCKET}/sparkle/$(git rev-parse HEAD).tar.gz
-                    '''
+                    ''')
                 }
             }
         }

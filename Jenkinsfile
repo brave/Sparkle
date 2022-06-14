@@ -35,10 +35,12 @@ pipeline {
         }
         stage("s3-upload") {
             steps {
-                withAWS(credentials: "mac-build-s3-upload-artifacts", region: "us-west-2") {
-                    utils.run('''
-                        aws s3 cp --no-progress binaries.tar.gz s3://${BRAVE_ARTIFACTS_S3_BUCKET}/sparkle/$(git rev-parse HEAD).tar.gz
-                    ''')
+                script {
+                    withAWS(credentials: "mac-build-s3-upload-artifacts", region: "us-west-2") {
+                        utils.run('''
+                            aws s3 cp --no-progress binaries.tar.gz s3://${BRAVE_ARTIFACTS_S3_BUCKET}/sparkle/$(git rev-parse HEAD).tar.gz
+                        ''')
+                    }
                 }
             }
         }

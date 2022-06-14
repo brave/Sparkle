@@ -13,7 +13,7 @@ pipeline {
                 }
             }
         }
-        stage('dist') {
+        stage('build') {
             steps {
                 script {
                     utils.run("""
@@ -26,7 +26,7 @@ pipeline {
                 }
             }
         }
-        stage('pack-binaries') {
+        stage('dist') {
             steps {
                 script {
                     utils.run("tar -C binaries -czf binaries.tar.gz .")

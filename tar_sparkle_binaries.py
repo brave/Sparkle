@@ -1,12 +1,12 @@
 import os
 import os.path
+import sys
 import tarfile
 
 
 def main():
     with tarfile.open('sparkle_binaries.tar.gz', 'w:gz') as tar:
-        for f in ('Sparkle.framework', 'BinaryDelta', 'generate_keys',
-                  'sign_update'):
+        for f in sys.argv[1:]:
             tar.add(f)
         sparkle_src_dir = os.path.dirname(os.path.realpath(__file__))
         sign_update_dsa = os.path.join(sparkle_src_dir, 'bin',

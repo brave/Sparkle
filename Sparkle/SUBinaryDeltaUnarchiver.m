@@ -109,6 +109,7 @@
         [notifier notifySuccess];
     }
     else {
+        SULog(SULogLevelError, @"Error: During delta extraction %@", applyDiffError);
         [notifier notifyFailureWithError:applyDiffError];
     }
 }
